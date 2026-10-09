@@ -1,0 +1,174 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Habit Wheel</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 12px;
+    background: #f8f6f0; color: #383b32;
+    font-family: Arial, sans-serif;
+    text-align: center;
+  }
+  .app { max-width: 390px; margin: auto; }
+  h2 { font-size: 23px; margin: 4px 0 8px; }
+  p { color: #77796d; font-size: 13px; }
+  .nav {
+    display: flex; justify-content: center;
+    align-items: center; gap: 22px; margin: 22px 0;
+  }
+  button { font: inherit; cursor: pointer; }
+  .nav button, .reset {
+    border: 1px solid #dedbce; background: #fffdf8;
+    border-radius: 9px; padding: 8px 13px; color: #383b32;
+  }
+  #month { min-width: 135px; font-weight: bold; }
+  .wheel {
+    position: relative; width: min(88vw, 330px);
+    aspect-ratio: 1; margin: 0 auto;
+  }
+  .day {
+    position: absolute; width: 29px; height: 29px;
+    transform: translate(-50%, -50%);
+    border: 1px solid #d8d6ca; border-radius: 50%;
+    background: #fffdf8; color: #64665d;
+    font-size: 11px; padding: 0;
+  }
+  .day.done { background: #8b9b78; color: white; border-color: #8b9b78; }
+  .day.today { outline: 2px solid #b4a17c; outline-offset: 2px; }
+  .center {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%); width: 130px;
+  }
+  #percent { font-size: 35px; font-weight: bold; }
+  #count { font-size: 12px; color: #77796d; margin-top: 5px; }
+  .bar {
+    height: 5px; background: #e6e3d9;
+    border-radius: 10px; margin: 22px 10px 12px;
+    overflow: hidden;
+  }
+  #fill { height: 100%; width: 0; background: #8b9b78; }
+  .reset { margin-top: 14px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h2>My Habit Wheel</h2>
+  <p>Small steps, every day.</p>
+
+  <div class="nav">
+    <button id="prev" aria-label="Previous month">←</button>
+    <span id="month"></span>
+    <button id="next" aria-label="Next month">→</button>
+  </div>
+
+  <div class="wheel" id="wheel">
+    <div class="center">
+      <div id="percent">0%</div>
+      <div>completed</div>
+      <div id="count"></div>
+    </div>
+  </div>
+
+  <div class="bar"><div id="fill"></div></div>
+  <p>Click a circle to mark your habit complete.</p>
+  <button class="reset" id="reset">Reset this month</button>
+</div>
+
+<script>
+  const wheel = document.getElementById('wheel');
+  const monthLabel = document.getElementById('month');
+  const percentLabel = document.getElementById('percent');
+  const countLabel = document.getElementById('count');
+  const fill = document.getElementById('fill');
+
+  let shown = new Date();
+  shown = new Date(shown.getFullYear(), shown.getMonth(), 1);
+
+  // Save each month's completed days in this browser.
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem('habit-wheel-data') || '{}');
+  } catch (e) {
+    saved = {};
+  }
+
+  function key() {
+    return shown.getFullYear() + '-' +
+      String(shown.getMonth() + 1).padStart(2, '0');
+  }
+
+  function render() {
+    wheel.querySelectorAll('.day').forEach(el => el.remove());
+
+    const year = shown.getFullYear();
+    const month = shown.getMonth();
+    const total = new Date(year, month + 1, 0).getDate();
+    const completed = saved[key()] || [];
+    const today = new Date();
+    const isCurrentMonth =
+      year === today.getFullYear() && month === today.getMonth();
+
+    monthLabel.textContent = shown.toLocaleDateString('en', {
+      month: 'long', year: 'numeric'
+    });
+
+    for (let day = 1; day <= total; day++) {
+      const angle = (day - 1) / total * Math.PI * 2 - Math.PI / 2;
+      const radius = 44;
+      const btn = document.createElement('button');
+      btn.className = 'day';
+      btn.textContent = day;
+      btn.style.left = (50 + radius * Math.cos(angle)) + '%';
+      btn.style.top = (50 + radius * Math.sin(angle)) + '%';
+      btn.setAttribute('aria-label', 'Day ' + day);
+      btn.setAttribute('aria-pressed', completed.includes(day));
+
+      if (completed.includes(day)) btn.classList.add('done');
+      if (isCurrentMonth && day === today.getDate()) {
+        btn.classList.add('today');
+      }
+
+      btn.addEventListener('click', () => {
+        const list = saved[key()] || [];
+        saved[key()] = list.includes(day)
+          ? list.filter(d => d !== day)
+          : [...list, day];
+        localStorage.setItem('habit-wheel-data', JSON.stringify(saved));
+        render();
+      });
+
+      wheel.appendChild(btn);
+    }
+
+    const pct = Math.round(completed.length / total * 100);
+    percentLabel.textContent = pct + '%';
+    countLabel.textContent = completed.length + ' of ' + total + ' days';
+    fill.style.width = pct + '%';
+  }
+
+  document.getElementById('prev').onclick = () => {
+    shown.setMonth(shown.getMonth() - 1);
+    render();
+  };
+
+  document.getElementById('next').onclick = () => {
+    shown.setMonth(shown.getMonth() + 1);
+    render();
+  };
+
+  document.getElementById('reset').onclick = () => {
+    if (confirm('Reset all completed days for this month?')) {
+      saved[key()] = [];
+      localStorage.setItem('habit-wheel-data', JSON.stringify(saved));
+      render();
+    }
+  };
+
+  render();
+</script>
+</body>
+</html>
